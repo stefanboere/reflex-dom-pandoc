@@ -6,7 +6,8 @@
 module Reflex.Dom.Pandoc.Footnotes where
 
 import Control.Monad.Reader
-import Data.List (nub, sortOn)
+import Data.Foldable (fold)
+import Data.List (nub)
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified Data.Map as Map
@@ -36,25 +37,22 @@ queryFootnotes =
       )
   where
     buildFootnotes :: [Footnote] -> Footnotes
-    buildFootnotes fs =
-      Map.fromList $
-        flip fmap (zip (nub fs) [1 ..]) $ \(fn, idx) ->
-          (fn, idx)
+    buildFootnotes =
+      Map.fromList . flip zip [1..] . nub
 
-renderFootnotes :: (DomBuilder t m, Monoid a) => ([Block] -> m a) -> Footnotes -> m a
+invertMap :: Ord t => Map k t -> Map t k
+invertMap = Map.fromList . fmap (\(x,y) -> (y,x)) . Map.toList
+
+renderFootnotes :: (DomBuilder t m, Monoid a, MonadHold t m, MonadFix m, PostBuild t m) => (Dynamic t [Block] -> m a) -> Dynamic t Footnotes -> m (Dynamic t a)
 renderFootnotes render footnotes = do
-  if null footnotes
-    then pure mempty
-    else do
-      elAttr "div" ("id" =: "footnotes") $ do
-        el "ol" $
-          fmap mconcat $
-            forM (sortOn snd $ Map.toList footnotes) $ \(Footnote blks, idx) -> do
+      xs <- elAttr "div" ("id" =: "footnotes") $ do
+        el "ol" $ listWithKey (invertMap <$> footnotes) $ \idx dynFootnote -> do
               elAttr "li" ("id" =: ("fn" <> T.pack (show idx))) $ do
-                x <- render blks
+                x <- render $ fmap unFootnote dynFootnote
                 -- FIXME: This should appear inline if the footnote is a single paragraph.
                 elAttr "a" ("href" =: ("#fnref" <> T.pack (show idx))) $ text "↩︎"
                 pure x
+      pure $ fold <$> xs
 
 renderFootnoteRef :: DomBuilder t m => Int -> m ()
 renderFootnoteRef idx = do
@@ -68,5 +66,5 @@ renderFootnoteRef idx = do
     elNoSnippetSpan :: DomBuilder t m => Map Text Text -> m () -> m ()
     elNoSnippetSpan attrs = elAttr "span" ("data-nosnippet" =: "" <> attrs)
 
-sansFootnotes :: DomBuilder t m => ReaderT Footnotes m a -> m a
+sansFootnotes :: DomBuilder t m => ReaderT (Dynamic t Footnotes) m a -> m a
 sansFootnotes = flip runReaderT mempty

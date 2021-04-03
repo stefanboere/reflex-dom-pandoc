@@ -14,23 +14,33 @@ import Prelude hiding (lines)
 
 elCodeHighlighted ::
   forall t m.
-  DomBuilder t m =>
+  (PostBuild t m, DomBuilder t m) =>
+  -- | Pandoc attribute object. TODO: Use a sensible type.
+  Dynamic t Attr ->
+  -- | Code to highlight.
+  Dynamic t Text ->
+  m ()
+elCodeHighlighted attr x = dyn_ $ elCodeHighlighted' <$> attr <*> x
+
+elCodeHighlighted' ::
+  forall t m.
+  (PostBuild t m, DomBuilder t m) =>
   -- | Pandoc attribute object. TODO: Use a sensible type.
   Attr ->
   -- | Code to highlight.
   Text ->
   m ()
-elCodeHighlighted attr@(_, langClasses, _) x = do
+elCodeHighlighted' attr@(_, langClasses, _) x = do
   case tokenizeForOneOfLang langClasses x of
     Nothing -> do
       divClass "pandoc-code nosyntax" $ do
         el "pre" $
-          elPandocAttr "code" attr $
+          elPandocAttr "code" (constDyn attr) $
             text x
     Just lines ->
       divClass "pandoc-code highlighted" $ do
         el "pre" $
-          elPandocAttr "code" attr $ do
+          elPandocAttr "code" (constDyn attr) $ do
             forM_ lines $ \line -> do
               forM_ line $ \(tokType, tok) ->
                 elClass "span" (tokenClass tokType) $ text tok

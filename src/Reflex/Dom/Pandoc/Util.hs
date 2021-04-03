@@ -13,15 +13,15 @@ import Text.Pandoc.Definition (Attr)
 import qualified Text.Pandoc.Walk as W
 
 elPandocAttr ::
-  DomBuilder t m =>
+  (PostBuild t m, DomBuilder t m) =>
   -- | Element name
   Text ->
   -- | Pandoc attribute object. TODO: Use a sensible type.
-  Attr ->
+  Dynamic t Attr ->
   -- | Child widget
   m a ->
   m a
-elPandocAttr name = elAttr name . sansEmptyAttrs . renderAttr
+elPandocAttr name = elDynAttr name . fmap (sansEmptyAttrs . renderAttr)
 
 sansEmptyAttrs :: Map k Text -> Map k Text
 sansEmptyAttrs = Map.filter (not . T.null)
