@@ -26,6 +26,7 @@ import           Control.Monad.Reader           ( MonadReader(ask)
                                                 , MonadTrans(lift)
                                                 , ReaderT(runReaderT)
                                                 )
+import           Data.Bifunctor                 ( bimap )
 import           Data.Bool                      ( bool )
 import           Data.Dependent.Sum
 import           Data.Foldable                  ( fold )
@@ -511,9 +512,7 @@ blockToDSum = \case
     OrderedListTag ==> (attrs, fmap (fmap blockToDSum) xss)
   BulletList xss -> BulletListTag ==> fmap (fmap blockToDSum) xss
   DefinitionList defs ->
-    DefinitionListTag
-      ==> fmap (\(x, y) -> (fmap inlineToDSum x, fmap (fmap blockToDSum) y))
-               defs
+    DefinitionListTag ==> fmap (bimap inlineToDSum (fmap blockToDSum)) defs
   Header level attr xs -> HeaderTag ==> (level, attr, fmap inlineToDSum xs)
   HorizontalRule       -> HorizontalRuleTag ==> ()
   Table attr captions colSpec tableHead tbodys tfoot ->
