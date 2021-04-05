@@ -512,7 +512,8 @@ blockToDSum = \case
     OrderedListTag ==> (attrs, fmap (fmap blockToDSum) xss)
   BulletList xss -> BulletListTag ==> fmap (fmap blockToDSum) xss
   DefinitionList defs ->
-    DefinitionListTag ==> fmap (bimap inlineToDSum (fmap blockToDSum)) defs
+    DefinitionListTag
+      ==> fmap (bimap (fmap inlineToDSum) (fmap (fmap blockToDSum))) defs
   Header level attr xs -> HeaderTag ==> (level, attr, fmap inlineToDSum xs)
   HorizontalRule       -> HorizontalRuleTag ==> ()
   Table attr captions colSpec tableHead tbodys tfoot ->
