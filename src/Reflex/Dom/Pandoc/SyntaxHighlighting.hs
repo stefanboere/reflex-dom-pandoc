@@ -17,26 +17,20 @@ import           Text.Pandoc.Definition         ( Attr )
 elCodeHighlighted
   :: forall t m
    . (PostBuild t m, DomBuilder t m)
-  =>
-  -- | Pandoc attribute object. TODO: Use a sensible type.
-     Dynamic t Attr
-  ->
-  -- | Code to highlight.
-     Dynamic t Text
+    => S.SyntaxMap
+  -> Dynamic t Attr -- ^ Pandoc attribute object. TODO: Use a sensible type.
+  -> Dynamic t Text -- ^ Code to highlight.
   -> m ()
-elCodeHighlighted attr x = dyn_ $ elCodeHighlighted' <$> attr <*> x
+elCodeHighlighted syntaxMap attr x = dyn_ $ elCodeHighlighted' syntaxMap <$> attr <*> x
 
 elCodeHighlighted'
   :: forall t m
    . (PostBuild t m, DomBuilder t m)
-  =>
-  -- | Pandoc attribute object. TODO: Use a sensible type.
-     Attr
-  ->
-  -- | Code to highlight.
-     Text
+  => S.SyntaxMap
+  -> Attr -- ^ Pandoc attribute object. TODO: Use a sensible type.
+  -> Text -- ^ Code to highlight.
   -> m ()
-elCodeHighlighted' attr@(_, langClasses, _) x = do
+elCodeHighlighted' syntaxMap attr@(_, langClasses, _) x = do
   case tokenizeForOneOfLang langClasses x of
     Nothing -> do
       divClass "pandoc-code nosyntax" $ do
@@ -49,11 +43,11 @@ elCodeHighlighted' attr@(_, langClasses, _) x = do
           text "\n"
  where
   tokenizeForOneOfLang langs s = do
-    syntax <- msum (fmap (`S.lookupSyntax` S.defaultSyntaxMap) langs)
+    syntax <- msum (fmap (`S.lookupSyntax` syntaxMap) langs)
     case S.tokenize tokenizerConfig syntax s of
       Left  _     -> Nothing
       Right lines -> pure lines
-  tokenizerConfig = S.TokenizerConfig { S.syntaxMap   = S.defaultSyntaxMap
+  tokenizerConfig = S.TokenizerConfig { S.syntaxMap   = syntaxMap
                                       , S.traceOutput = False
                                       }
 

@@ -16,6 +16,11 @@ module Reflex.Dom.Pandoc.Document
   , Config(..)
   , PandocRawNode(..)
   , defaultConfig
+  -- * Skylighting exports
+  , S.SyntaxMap
+  , S.parseSyntaxDefinitionFromString
+  , S.Syntax
+  , S.addSyntaxDefinition
   ) where
 
 import           Control.Monad                  ( join
@@ -55,33 +60,29 @@ import           Reflex.Dom.Pandoc.Util         ( elPandocAttr
                                                 , sansEmptyAttrs
                                                 )
 import           Text.Pandoc.Definition
+import qualified Skylighting                   as S
 
 data Config t m a = Config
   { -- | Custom link renderer.
     _config_renderLink
       :: m (Dynamic t a)
-      ->
-      -- Link URL
-         Dynamic t Text
-      ->
-      -- Link attributes, including "title"
-         Dynamic t (Map Text Text)
-      ->
-      -- Inner body of the link.
-         Dynamic t [DSum InlineTag Identity]
+      -> Dynamic t Text --  Link URL
+      -> Dynamic t (Map Text Text) --  Link attributes, including "title"
+      -> Dynamic t [DSum InlineTag Identity] --  Inner body of the link.
       -> m (Dynamic t a)
-  ,
-    -- | How to render code blocks
+  , -- | How to render code blocks
     _config_renderCode :: m () -> Dynamic t Attr -> Dynamic t Text -> m ()
-  ,
-    -- | How to render raw nodes
+  , -- | How to render raw nodes
     _config_renderRaw  :: Dynamic t PandocRawNode -> m a
+  , -- | The skylighting syntax map
+   _config_syntaxMap :: S.SyntaxMap
   }
 
 defaultConfig :: (PostBuild t m, DomBuilder t m) => Config t m ()
 defaultConfig = Config (\f _ _ _ -> f >> pure (constDyn ()))
                        (\f _ _ -> f)
                        (dyn_ . fmap elPandocRawNodeSafe)
+                       mempty
 
 -- | Convert Markdown to HTML
 elPandoc
@@ -181,7 +182,7 @@ renderBlock cfg = \case
   CodeBlockTag :=> Compose dynxs ->
     let (attr, x) = splitDynPure (runIdentity <$> dynxs)
     in  do
-          lift $ _config_renderCode cfg (elCodeHighlighted attr x) attr x
+          lift $ _config_renderCode cfg (elCodeHighlighted (_config_syntaxMap cfg) attr x) attr x
           pure mempty
   RawBlockTag :=> Compose x ->
     lift
