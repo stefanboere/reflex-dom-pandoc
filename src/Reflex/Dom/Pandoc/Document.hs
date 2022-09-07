@@ -18,7 +18,7 @@ module Reflex.Dom.Pandoc.Document
   , defaultConfig
   -- * Skylighting exports
   , S.SyntaxMap
-  , S.parseSyntaxDefinitionFromString
+  , S.parseSyntaxDefinitionFromText
   , S.Syntax
   , S.addSyntaxDefinition
   ) where
